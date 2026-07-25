@@ -175,7 +175,10 @@
   <div class="conn-banner" id="conn-banner">Reconnecting&hellip;</div>
   <header class="chat-top">
     <span class="title">Quick Chat</span>
-    <span class="presence-pill" id="presence-pill"><span class="dot"></span><span id="presence-count">0</span> online</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="meeting.html" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent); text-decoration:none; border:1px solid var(--accent-dim); padding:5px 11px; border-radius:999px;">&#127909; Start Meeting</a>
+      <span class="presence-pill" id="presence-pill"><span class="dot"></span><span id="presence-count">0</span> online</span>
+    </div>
   </header>
 
   <div id="messages"></div>
