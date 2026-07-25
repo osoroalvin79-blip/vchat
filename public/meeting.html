@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meet &mdash; Quick Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@daily-co/daily-js"></script>
+<style>
+  :root {
+    --bg: #0F1115; --panel: #171A21; --line: #262B36;
+    --text: #F0F2F7; --text-dim: #8A93A6; --accent: #5FE3A1; --accent-dim: #1F3A2C;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif;
+    display: flex; flex-direction: column;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  #setup-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .setup-card { max-width: 420px; width: 100%; text-align: center; }
+  .setup-card .glyph {
+    width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 22px;
+    background: linear-gradient(135deg, var(--accent), #2BB673);
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+  }
+  .setup-card h1 { font-size: 26px; margin: 0 0 8px; }
+  .setup-card p.sub { color: var(--text-dim); font-size: 14px; margin: 0 0 28px; }
+
+  .tabs { display: flex; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px; margin-bottom: 22px; }
+  .tab { flex: 1; padding: 10px; border-radius: 9px; cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--text-dim); }
+  .tab.active { background: var(--accent); color: #072316; }
+
+  input {
+    width: 100%; background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    padding: 14px 16px; border-radius: 12px; font-size: 15px; font-family: inherit; margin-bottom: 12px;
+  }
+  .primary-btn {
+    width: 100%; background: var(--accent); color: #072316; border: none; font-weight: 700;
+    padding: 14px; border-radius: 12px; font-size: 15px; cursor: pointer;
+  }
+  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .panel-msg { font-size: 13px; margin-top: 14px; display: none; }
+  .panel-msg.error { color: #FF7A7A; }
+  .panel-msg.info { color: var(--text-dim); }
+
+  #join-panel { display: none; }
+  .share-link { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); word-break: break-all; margin-bottom: 14px; display: none; }
+
+  #call-screen { display: none; flex: 1; flex-direction: column; height: 100%; }
+  #call-frame { flex: 1; border: none; width: 100%; }
+  .call-topbar { padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .call-topbar .title { font-weight: 700; font-size: 14px; }
+  .leave-btn { background: #3D1A20; color: #FFB4BC; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="glyph">&#127909;</div>
+    <h1>Live Meeting</h1>
+    <p class="sub">Start a new meeting, or join one with a room link.</p>
+
+    <div class="tabs">
+      <div class="tab active" id="tab-create">Start a Meeting</div>
+      <div class="tab" id="tab-join">Join a Meeting</div>
+    </div>
+
+    <div id="create-panel">
+      <input type="text" id="host-name" placeholder="Your name" maxlength="40">
+      <button class="primary-btn" id="create-btn">Create &amp; Start Meeting</button>
+      <div class="share-link" id="share-link"></div>
+      <div class="panel-msg error" id="create-error"></div>
+    </div>
+
+    <div id="join-panel">
+      <input type="text" id="join-name" placeholder="Your name" maxlength="40">
+      <input type="text" id="join-room" placeholder="Room link or room name">
+      <button class="primary-btn" id="join-btn">Join Meeting</button>
+      <div class="panel-msg error" id="join-error"></div>
+    </div>
+  </div>
+</div>
+
+<div id="call-screen">
+  <div class="call-topbar">
+    <span class="title mono">LIVE MEETING</span>
+    <button class="leave-btn" id="leave-btn">Leave</button>
+  </div>
+  <iframe id="call-frame" allow="camera; microphone; fullscreen; display-capture; autoplay"></iframe>
+</div>
+
+<script>
+  const tabCreate = document.getElementById('tab-create');
+  const tabJoin = document.getElementById('tab-join');
+  const createPanel = document.getElementById('create-panel');
+  const joinPanel = document.getElementById('join-panel');
+  const setupScreen = document.getElementById('setup-screen');
+  const callScreen = document.getElementById('call-screen');
+  const callFrame = document.getElementById('call-frame');
+  const leaveBtn = document.getElementById('leave-btn');
+
+  tabCreate.addEventListener('click', () => {
+    tabCreate.classList.add('active'); tabJoin.classList.remove('active');
+    createPanel.style.display = 'block'; joinPanel.style.display = 'none';
+  });
+  tabJoin.addEventListener('click', () => {
+    tabJoin.classList.add('active'); tabCreate.classList.remove('active');
+    joinPanel.style.display = 'block'; createPanel.style.display = 'none';
+  });
+
+  // If the page was opened via a shared room link (?room=xxxx), jump straight to the Join tab
+  const params = new URLSearchParams(location.search);
+  const prefillRoom = params.get('room');
+  if (prefillRoom) {
+    tabJoin.click();
+    document.getElementById('join-room').value = prefillRoom;
+  }
+
+  let callFrameObj = null;
+
+  function startCall(roomUrl, token) {
+    setupScreen.style.display = 'none';
+    callScreen.style.display = 'flex';
+    callFrameObj = DailyIframe.wrap(callFrame, {
+      showLeaveButton: false,
+      iframeStyle: { width: '100%', height: '100%', border: '0' },
+    });
+    callFrameObj.join({ url: roomUrl, token });
+  }
+
+  leaveBtn.addEventListener('click', () => {
+    if (callFrameObj) callFrameObj.leave();
+    callScreen.style.display = 'none';
+    setupScreen.style.display = 'flex';
+  });
+
+  // ---------- Create meeting (host) ----------
+  document.getElementById('create-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('create-btn');
+    const errorEl = document.getElementById('create-error');
+    const shareLinkEl = document.getElementById('share-link');
+    const name = document.getElementById('host-name').value.trim() || 'Host';
+    errorEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Creating room\u2026';
+
+    try {
+      const roomRes = await fetch('/api/create-room', { method: 'POST' });
+      const room = await roomRes.json();
+      if (!roomRes.ok) throw new Error(room.error || 'Could not create room');
+
+      const tokenRes = await fetch('/api/meeting-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomName: room.name, userName: name, isHost: true }),
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error || 'Could not create host token');
+
+      const shareUrl = `${location.origin}/meeting.html?room=${encodeURIComponent(room.name)}`;
+      shareLinkEl.textContent = `Share this link: ${shareUrl}`;
+      shareLinkEl.style.display = 'block';
+
+      startCall(tokenData.roomUrl, tokenData.token);
+    } catch (err) {
+      errorEl.style.display = 'block';
+      errorEl.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Create & Start Meeting';
+    }
+  });
+
+  // ---------- Join meeting (participant) ----------
+  document.getElementById('join-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('join-btn');
+    const errorEl = document.getElementById('join-error');
+    const name = document.getElementById('join-name').value.trim();
+    let roomInput = document.getElementById('join-room').value.trim();
+    errorEl.style.display = 'none';
+
+    if (!name || !roomInput) {
+      errorEl.style.display = 'block';
+      errorEl.textContent = 'Please enter your name and the room link/name.';
+      return;
+    }
+
+    // Accept either a full daily.co room URL or just the room name
+    let roomName = roomInput;
+    let roomUrl = roomInput;
+    if (roomInput.includes('daily.co/')) {
+      roomName = roomInput.split('daily.co/')[1].replace(/\/$/, '').split('?')[0];
+    } else if (roomInput.includes('room=')) {
+      roomName = new URL(roomInput, location.origin).searchParams.get('room');
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Joining\u2026';
+
+    try {
+      const tokenRes = await fetch('/api/meeting-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomName, userName: name, isHost: false }),
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error || 'Could not join room');
+
+      startCall(tokenData.roomUrl, tokenData.token);
+    } catch (err) {
+      errorEl.style.display = 'block';
+      errorEl.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Join Meeting';
+    }
+  });
+</script>
+
+</body>
+</html>
